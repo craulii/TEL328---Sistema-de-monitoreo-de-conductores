@@ -1,0 +1,14 @@
+# Entorno virtual
+venv/
+venv.zip
+
+# Archivos de modelo
+*.pt
+
+# Archivos temporales y cachés
+__pycache__/
+*.pyc
+*.db
+output_frames/
+captures/
+violations/
