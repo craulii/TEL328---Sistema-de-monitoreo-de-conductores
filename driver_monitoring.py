@@ -579,7 +579,7 @@ class AdvancedDriverMonitoring:
         
         alert = self.generate_alert(violations, risk_level)
         if alert:
-            print(f"\n🚨 ALERTA [{alert['risk_level']}]: {description}")
+            print(f"\n ALERTA [{alert['risk_level']}]: {description}")
             if violations:
                 for v in violations[:2]:
                     print(f"   • {v['description']} (duración: {v['duration']:.1f}s)")
@@ -752,7 +752,7 @@ class AdvancedDriverMonitoring:
     def print_session_report(self, session_start, violations):
         duration = (datetime.now() - session_start).total_seconds()
         
-        print("\n📊 REPORTE DE SESIÓN:")
+        print("\nREPORTE DE SESIÓN:")
         print("-" * 70)
         print(f"⏱Duración: {duration/60:.1f} minutos")
         print(f"Frames procesados: {self.frame_count}")
