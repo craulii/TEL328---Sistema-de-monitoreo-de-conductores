@@ -20,59 +20,57 @@ thresholds:
   confidence: 0.5
   object_detection: 0.4
   object_near_hand: 100
+  gaze_deviation_sospechoso: 30
+  gaze_deviation_alto_riesgo: 50
 
 temporal_filter:
-  window_size: 5
-  validation_threshold: 0.6
+  window_size: 2
+  validation_threshold: 0.5
 
 video_recording:
   clip_duration: 5.0
   fps: 30
-  codec: 'VP80'
+  codec: 'mp4v'
   resolution: [1280, 720]
 
 safety_standards:
   CRITICO:
     ambas_manos_fuera_volante:
       weight: 1.0
-      duration: 1.0
+      duration: 0.2
     conductor_ausente:
       weight: 1.0
-      duration: 0.5
+      duration: 0.2
     multiples_personas:
       weight: 0.9
-      duration: 2.0
-    mirada_desviada_prolongada:
-      weight: 0.85
-      duration: 2.0
-    objeto_rostro_movimiento:
-      weight: 0.95
-      duration: 1.0
+      duration: 0.2
+      
   ALTO_RIESGO:
-    una_mano_fuera_volante_con_objeto:
-      weight: 0.8
-      duration: 2.0
-    uso_telefono:
-      weight: 0.85
-      duration: 1.0
-    bebiendo_comiendo:
+    una_mano_fuera_volante:
       weight: 0.75
-      duration: 2.0
+      duration: 0.2
+    uso_celular:
+      weight: 0.85
+      duration: 0.2
+    mirada_muy_desviada:
+      weight: 0.80
+      duration: 0.2
+      
   SOSPECHOSO:
-    una_mano_cerca_rostro:
-      weight: 0.6
-      duration: 2.0
-    objeto_sospechoso_visible:
+    objeto_detectado:
+      weight: 0.60
+      duration: 0.2
+    mirada_desviada:
       weight: 0.55
-      duration: 3.0
-    mano_no_visible:
-      weight: 0.5
-      duration: 4.0
+      duration: 0.2
+    manos_cerca_rostro:
+      weight: 0.50
+      duration: 0.2
 
 suspicious_objects:
-  cell phone: 'CRITICO'
-  bottle: 'ALTO_RIESGO'
-  cup: 'ALTO_RIESGO'
-  wine glass: 'ALTO_RIESGO'
+  cell phone: 'ALTO_RIESGO'
+  bottle: 'SOSPECHOSO'
+  cup: 'SOSPECHOSO'
+  wine glass: 'SOSPECHOSO'
   book: 'SOSPECHOSO'
   remote: 'SOSPECHOSO'

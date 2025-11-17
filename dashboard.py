@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 import os
 from pathlib import Path
 
+
 st.set_page_config(
     page_title="Monitoreo de Conductores",
     page_icon="🚗",
@@ -14,7 +15,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilos CSS personalizados mejorados
+
 st.markdown("""
     <style>
     .main-header {
@@ -38,7 +39,7 @@ st.markdown("""
         padding-left: 20px;
         padding-right: 20px;
     }
-    .violation-card {
+    .fault-card {
         padding: 15px;
         border-radius: 8px;
         border: 2px solid #ddd;
@@ -46,7 +47,7 @@ st.markdown("""
         cursor: pointer;
         transition: all 0.3s;
     }
-    .violation-card:hover {
+    .fault-card:hover {
         border-color: #1f77b4;
         box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
@@ -62,19 +63,19 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+
 @st.cache_resource
 def get_database_connection():
-    """Conexion a la base de datos"""
     return sqlite3.connect('driver_monitoring_advanced.db', check_same_thread=False)
 
-def load_violations():
-    """Carga todas las violaciones de la base de datos"""
+
+def load_faults():
     conn = get_database_connection()
     query = """
-        SELECT id, timestamp, risk_level, violation_type, duration, 
+        SELECT id, timestamp, risk_level, fault_type, duration, 
                confidence, hands_on_wheel, person_count, objects_detected,
                image_path, video_clip_path
-        FROM violations
+        FROM faults
         ORDER BY timestamp DESC
     """
     df = pd.read_sql_query(query, conn)
@@ -84,11 +85,11 @@ def load_violations():
         df['time'] = df['timestamp'].dt.time
     return df
 
+
 def load_statistics():
-    """Carga estadisticas de sesiones"""
     conn = get_database_connection()
     query = """
-        SELECT id, session_start, session_end, total_frames, total_violations,
+        SELECT id, session_start, session_end, total_frames, total_faults,
                critical_count, high_risk_count, suspicious_count, avg_fps
         FROM statistics
         ORDER BY session_start DESC
@@ -100,25 +101,24 @@ def load_statistics():
         df['duration_minutes'] = (df['session_end'] - df['session_start']).dt.total_seconds() / 60
     return df
 
+
 def overview_page():
-    """Pagina de resumen general"""
     st.markdown('<p class="main-header">SISTEMA DE MONITOREO DE CONDUCTORES</p>', 
                 unsafe_allow_html=True)
     
-    violations_df = load_violations()
+    faults_df = load_faults()
     stats_df = load_statistics()
     
-    # Metricas principales
     st.subheader("Metricas Generales")
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        total_violations = len(violations_df) if not violations_df.empty else 0
-        st.metric("Total Violaciones", total_violations)
+        total_faults = len(faults_df) if not faults_df.empty else 0
+        st.metric("Total Faltas de Conductor", total_faults)
     
     with col2:
-        critical = len(violations_df[violations_df['risk_level'] == 'CRITICO']) if not violations_df.empty else 0
-        st.metric("Violaciones Criticas", critical, delta_color="inverse")
+        critical = len(faults_df[faults_df['risk_level'] == 'CRITICO']) if not faults_df.empty else 0
+        st.metric("Faltas Criticas", critical, delta_color="inverse")
     
     with col3:
         total_sessions = len(stats_df) if not stats_df.empty else 0
@@ -130,13 +130,12 @@ def overview_page():
     
     st.divider()
     
-    # Graficos de resumen
     col1, col2 = st.columns(2)
     
     with col1:
-        if not violations_df.empty:
+        if not faults_df.empty:
             st.subheader("Distribucion por Nivel de Riesgo")
-            risk_counts = violations_df['risk_level'].value_counts()
+            risk_counts = faults_df['risk_level'].value_counts()
             colors = {'CRITICO': '#d62728', 'ALTO_RIESGO': '#ff7f0e', 'SOSPECHOSO': '#ffdd57'}
             fig = px.pie(
                 values=risk_counts.values,
@@ -149,77 +148,75 @@ def overview_page():
             fig.update_layout(showlegend=True, height=400)
             st.plotly_chart(fig, use_container_width=True)
         else:
-            st.info("No hay datos de violaciones disponibles")
+            st.info("No hay datos de faltas de conductor disponibles")
     
     with col2:
-        if not violations_df.empty:
-            st.subheader("Top 5 Tipos de Violaciones")
-            violation_counts = violations_df['violation_type'].value_counts().head(5)
+        if not faults_df.empty:
+            st.subheader("Top 5 Tipos de Faltas")
+            fault_counts = faults_df['fault_type'].value_counts().head(5)
             fig = px.bar(
-                x=violation_counts.values,
-                y=[v.replace('_', ' ').title() for v in violation_counts.index],
+                x=fault_counts.values,
+                y=[v.replace('_', ' ').title() for v in fault_counts.index],
                 orientation='h',
-                labels={'x': 'Cantidad', 'y': 'Tipo de Violacion'},
-                color=violation_counts.values,
+                labels={'x': 'Cantidad', 'y': 'Tipo de Falta'},
+                color=fault_counts.values,
                 color_continuous_scale='Reds'
             )
             fig.update_layout(showlegend=False, height=400)
             st.plotly_chart(fig, use_container_width=True)
         else:
-            st.info("No hay datos de violaciones disponibles")
+            st.info("No hay datos de faltas de conductor disponibles")
     
-    # Timeline de violaciones
-    if not violations_df.empty and len(violations_df) > 1:
-        st.subheader("Timeline de Violaciones")
-        violations_by_date = violations_df.groupby('date').size().reset_index(name='count')
+    if not faults_df.empty and len(faults_df) > 1:
+        st.subheader("Timeline de Faltas de Conductor")
+        faults_by_date = faults_df.groupby('date').size().reset_index(name='count')
         fig = px.line(
-            violations_by_date,
+            faults_by_date,
             x='date',
             y='count',
             markers=True,
-            labels={'date': 'Fecha', 'count': 'Numero de Violaciones'}
+            labels={'date': 'Fecha', 'count': 'Numero de Faltas'}
         )
         fig.update_traces(line_color='#1f77b4', line_width=3)
         fig.update_layout(height=350, hovermode='x unified')
         st.plotly_chart(fig, use_container_width=True)
 
-def violations_page():
-    """Pagina de visualizacion de violaciones mejorada"""
-    st.markdown('<p class="main-header">REGISTRO DE VIOLACIONES</p>', 
+
+def faults_page():
+    st.markdown('<p class="main-header">REGISTRO DE FALTAS DE CONDUCTOR</p>', 
                 unsafe_allow_html=True)
     
-    violations_df = load_violations()
+    faults_df = load_faults()
     
-    if violations_df.empty:
-        st.warning("No se encontraron violaciones registradas")
+    if faults_df.empty:
+        st.warning("No se encontraron faltas de conductor registradas")
         return
     
-    # Filtros
     st.subheader("Filtros")
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         risk_filter = st.multiselect(
             "Nivel de Riesgo",
-            options=violations_df['risk_level'].unique(),
-            default=violations_df['risk_level'].unique()
+            options=faults_df['risk_level'].unique(),
+            default=faults_df['risk_level'].unique()
         )
     
     with col2:
-        violation_types = violations_df['violation_type'].unique()
+        fault_types = faults_df['fault_type'].unique()
         type_filter = st.multiselect(
-            "Tipo de Violacion",
-            options=violation_types,
-            default=violation_types
+            "Tipo de Falta",
+            options=fault_types,
+            default=fault_types
         )
     
     with col3:
-        if not violations_df.empty:
+        if not faults_df.empty:
             date_range = st.date_input(
                 "Rango de Fechas",
-                value=(violations_df['date'].min(), violations_df['date'].max()),
-                min_value=violations_df['date'].min(),
-                max_value=violations_df['date'].max()
+                value=(faults_df['date'].min(), faults_df['date'].max()),
+                min_value=faults_df['date'].min(),
+                max_value=faults_df['date'].max()
             )
     
     with col4:
@@ -228,10 +225,9 @@ def violations_page():
             ["Tabla Interactiva", "Galeria de Tarjetas", "Lista Compacta"]
         )
     
-    # Aplicar filtros
-    filtered_df = violations_df[
-        (violations_df['risk_level'].isin(risk_filter)) &
-        (violations_df['violation_type'].isin(type_filter))
+    filtered_df = faults_df[
+        (faults_df['risk_level'].isin(risk_filter)) &
+        (faults_df['fault_type'].isin(type_filter))
     ]
     
     if len(date_range) == 2:
@@ -241,70 +237,63 @@ def violations_page():
         ]
     
     st.divider()
-    st.subheader(f"Resultados: {len(filtered_df)} violaciones encontradas")
+    st.subheader(f"Resultados: {len(filtered_df)} faltas de conductor encontradas")
     
-    # Inicializar session state para violacion seleccionada
-    if 'selected_violation_id' not in st.session_state:
-        st.session_state.selected_violation_id = None
+    if 'selected_fault_id' not in st.session_state:
+        st.session_state.selected_fault_id = None
     
-    # MODO TABLA INTERACTIVA
     if view_mode == "Tabla Interactiva":
         col1, col2 = st.columns([1, 1])
         
         with col1:
-            st.markdown("#### Lista de Violaciones")
+            st.markdown("#### Lista de Faltas de Conductor")
             
-            # Crear tabla clickeable
             for idx, row in filtered_df.iterrows():
                 risk_class = row['risk_level'].lower().replace('_', '')
                 
-                # Boton para cada violacion
-                button_label = f"{row['timestamp'].strftime('%Y-%m-%d %H:%M:%S')} | {row['risk_level']} | {row['violation_type'].replace('_', ' ').title()}"
+                button_label = f"{row['timestamp'].strftime('%Y-%m-%d %H:%M:%S')} | {row['risk_level']} | {row['fault_type'].replace('_', ' ').title()}"
                 
                 if st.button(
                     button_label,
                     key=f"btn_{idx}",
                     use_container_width=True,
-                    type="primary" if st.session_state.selected_violation_id == idx else "secondary"
+                    type="primary" if st.session_state.selected_fault_id == idx else "secondary"
                 ):
-                    st.session_state.selected_violation_id = idx
+                    st.session_state.selected_fault_id = idx
                     st.rerun()
         
         with col2:
             st.markdown("#### Detalles y Video")
             
-            if st.session_state.selected_violation_id is not None:
-                violation = filtered_df.loc[st.session_state.selected_violation_id]
+            if st.session_state.selected_fault_id is not None:
+                fault = filtered_df.loc[st.session_state.selected_fault_id]
                 
-                # Mostrar video o imagen
-                video_path = violation['video_clip_path']
+                video_path = fault['video_clip_path']
                 if pd.notna(video_path) and os.path.exists(video_path):
                     st.video(video_path, autoplay=True)
                 else:
-                    image_path = violation['image_path']
+                    image_path = fault['image_path']
                     if pd.notna(image_path) and os.path.exists(image_path):
                         st.image(image_path, use_container_width=True)
                     else:
                         st.info("No hay multimedia disponible")
                 
-                # Informacion detallada
                 st.markdown("---")
                 col_a, col_b = st.columns(2)
                 
                 with col_a:
-                    st.markdown(f"**Nivel:** :red[{violation['risk_level']}]")
-                    st.markdown(f"**Duracion:** {violation['duration']:.1f}s")
-                    st.markdown(f"**Manos en volante:** {violation['hands_on_wheel']}")
+                    st.markdown(f"**Nivel:** :red[{fault['risk_level']}]")
+                    st.markdown(f"**Duracion:** {fault['duration']:.1f}s")
+                    st.markdown(f"**Manos en volante:** {fault['hands_on_wheel']}")
                 
                 with col_b:
-                    st.markdown(f"**Confianza:** {violation['confidence']:.1%}")
-                    st.markdown(f"**Personas:** {violation['person_count']}")
-                    if pd.notna(violation['objects_detected']):
-                        st.markdown(f"**Objetos:** {violation['objects_detected']}")
+                    st.markdown(f"**Confianza:** {fault['confidence']:.1%}")
+                    st.markdown(f"**Personas:** {fault['person_count']}")
+                    if pd.notna(fault['objects_detected']):
+                        st.markdown(f"**Objetos:** {fault['objects_detected']}")
             else:
-                st.info("Selecciona una violacion de la lista para ver detalles")
+                st.info("Selecciona una falta de conductor de la lista para ver detalles")
     
-    # MODO GALERIA DE TARJETAS
     elif view_mode == "Galeria de Tarjetas":
         cards_per_row = 2
         
@@ -318,12 +307,10 @@ def violations_page():
                     
                     with col:
                         with st.container():
-                            # Header de la tarjeta
                             risk_color = {'CRITICO': '🔴', 'ALTO_RIESGO': '🟠', 'SOSPECHOSO': '🟡'}
-                            st.markdown(f"### {risk_color.get(row['risk_level'], '⚪')} {row['violation_type'].replace('_', ' ').title()}")
+                            st.markdown(f"### {risk_color.get(row['risk_level'], '⚪')} {row['fault_type'].replace('_', ' ').title()}")
                             st.caption(f"{row['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}")
                             
-                            # Video o imagen
                             video_path = row['video_clip_path']
                             if pd.notna(video_path) and os.path.exists(video_path):
                                 st.video(video_path)
@@ -332,7 +319,6 @@ def violations_page():
                                 if pd.notna(image_path) and os.path.exists(image_path):
                                     st.image(image_path, use_container_width=True)
                             
-                            # Info resumida
                             col_x, col_y, col_z = st.columns(3)
                             with col_x:
                                 st.metric("Nivel", row['risk_level'])
@@ -343,10 +329,8 @@ def violations_page():
                             
                             st.divider()
     
-    # MODO LISTA COMPACTA
     else:
-        # Tabla tradicional
-        display_df = filtered_df[['timestamp', 'risk_level', 'violation_type', 'duration', 'confidence']].copy()
+        display_df = filtered_df[['timestamp', 'risk_level', 'fault_type', 'duration', 'confidence']].copy()
         display_df.columns = ['Fecha/Hora', 'Nivel de Riesgo', 'Tipo', 'Duracion (s)', 'Confianza']
         display_df['Tipo'] = display_df['Tipo'].str.replace('_', ' ').str.title()
         display_df['Confianza'] = display_df['Confianza'].apply(lambda x: f"{x:.1%}")
@@ -361,40 +345,39 @@ def violations_page():
         
         st.divider()
         
-        # Selector para ver detalles
-        violation_options = {
-            f"{row['timestamp'].strftime('%Y-%m-%d %H:%M:%S')} - {row['violation_type'].replace('_', ' ').title()}": idx
+        fault_options = {
+            f"{row['timestamp'].strftime('%Y-%m-%d %H:%M:%S')} - {row['fault_type'].replace('_', ' ').title()}": idx
             for idx, row in filtered_df.iterrows()
         }
         
-        selected = st.selectbox("Ver detalles de violacion", options=list(violation_options.keys()))
+        selected = st.selectbox("Ver detalles de falta de conductor", options=list(fault_options.keys()))
         
         if selected:
-            violation_idx = violation_options[selected]
-            violation = filtered_df.loc[violation_idx]
+            fault_idx = fault_options[selected]
+            fault = filtered_df.loc[fault_idx]
             
             col1, col2 = st.columns([2, 1])
             
             with col1:
-                video_path = violation['video_clip_path']
+                video_path = fault['video_clip_path']
                 if pd.notna(video_path) and os.path.exists(video_path):
                     st.video(video_path, autoplay=True)
                 else:
-                    image_path = violation['image_path']
+                    image_path = fault['image_path']
                     if pd.notna(image_path) and os.path.exists(image_path):
                         st.image(image_path, use_container_width=True)
             
             with col2:
                 st.markdown("### Informacion Detallada")
-                st.markdown(f"**Nivel:** :red[{violation['risk_level']}]")
-                st.markdown(f"**Tipo:** {violation['violation_type'].replace('_', ' ').title()}")
-                st.markdown(f"**Duracion:** {violation['duration']:.1f}s")
-                st.markdown(f"**Confianza:** {violation['confidence']:.1%}")
-                st.markdown(f"**Manos en volante:** {violation['hands_on_wheel']}")
-                st.markdown(f"**Personas detectadas:** {violation['person_count']}")
+                st.markdown(f"**Nivel:** :red[{fault['risk_level']}]")
+                st.markdown(f"**Tipo:** {fault['fault_type'].replace('_', ' ').title()}")
+                st.markdown(f"**Duracion:** {fault['duration']:.1f}s")
+                st.markdown(f"**Confianza:** {fault['confidence']:.1%}")
+                st.markdown(f"**Manos en volante:** {fault['hands_on_wheel']}")
+                st.markdown(f"**Personas detectadas:** {fault['person_count']}")
+
 
 def statistics_page():
-    """Pagina de estadisticas de rendimiento"""
     st.markdown('<p class="main-header">ESTADISTICAS DE RENDIMIENTO</p>', 
                 unsafe_allow_html=True)
     
@@ -404,7 +387,6 @@ def statistics_page():
         st.warning("No se encontraron estadisticas de sesiones")
         return
     
-    # Metricas de rendimiento
     st.subheader("Metricas de Sesiones")
     col1, col2, col3, col4 = st.columns(4)
     
@@ -421,12 +403,11 @@ def statistics_page():
         st.metric("Tiempo Total Monitoreo", f"{total_duration:.0f} min")
     
     with col4:
-        total_violations_all = stats_df['total_violations'].sum()
-        st.metric("Violaciones Totales", total_violations_all)
+        total_faults_all = stats_df['total_faults'].sum()
+        st.metric("Faltas Totales", total_faults_all)
     
     st.divider()
     
-    # Graficos
     col1, col2 = st.columns(2)
     
     with col1:
@@ -445,8 +426,8 @@ def statistics_page():
         st.plotly_chart(fig, use_container_width=True)
     
     with col2:
-        st.subheader("Distribucion de Violaciones por Nivel")
-        violation_data = {
+        st.subheader("Distribucion de Faltas por Nivel")
+        fault_data = {
             'Nivel': ['Criticas', 'Alto Riesgo', 'Sospechosas'],
             'Cantidad': [
                 stats_df['critical_count'].sum(),
@@ -454,10 +435,10 @@ def statistics_page():
                 stats_df['suspicious_count'].sum()
             ]
         }
-        df_violations = pd.DataFrame(violation_data)
+        df_faults = pd.DataFrame(fault_data)
         colors_map = {'Criticas': '#d62728', 'Alto Riesgo': '#ff7f0e', 'Sospechosas': '#ffdd57'}
         fig = px.bar(
-            df_violations,
+            df_faults,
             x='Nivel',
             y='Cantidad',
             color='Nivel',
@@ -466,7 +447,6 @@ def statistics_page():
         fig.update_layout(showlegend=False, height=350)
         st.plotly_chart(fig, use_container_width=True)
     
-    # Rendimiento temporal
     if len(stats_df) > 1:
         st.subheader("Evolucion del Rendimiento")
         fig = go.Figure()
@@ -486,12 +466,11 @@ def statistics_page():
         )
         st.plotly_chart(fig, use_container_width=True)
     
-    # Tabla de sesiones
     st.subheader("Historial de Sesiones")
     display_stats = stats_df[['session_start', 'duration_minutes', 'total_frames', 
-                               'avg_fps', 'total_violations', 'critical_count']].copy()
+                               'avg_fps', 'total_faults', 'critical_count']].copy()
     display_stats.columns = ['Inicio Sesion', 'Duracion (min)', 'Frames', 
-                             'FPS Prom', 'Total Violaciones', 'Criticas']
+                             'FPS Prom', 'Total Faltas', 'Criticas']
     display_stats['Inicio Sesion'] = display_stats['Inicio Sesion'].dt.strftime('%Y-%m-%d %H:%M:%S')
     display_stats['Duracion (min)'] = display_stats['Duracion (min)'].apply(lambda x: f"{x:.1f}")
     display_stats['FPS Prom'] = display_stats['FPS Prom'].apply(lambda x: f"{x:.1f}")
@@ -503,36 +482,42 @@ def statistics_page():
         hide_index=True
     )
 
+
 def clips_gallery():
-    """Galeria de clips de video"""
     st.markdown('<p class="main-header">GALERIA DE CLIPS</p>', 
                 unsafe_allow_html=True)
     
-    clips_dir = Path('clips')
+    st.info("Selecciona una carpeta de nivel de riesgo")
+    
+    level_folders = {
+        'Criticas': 'clips/critico',
+        'Alto Riesgo': 'clips/altoriesgo',
+        'Sospechosas': 'clips/sospechoso'
+    }
+    
+    selected_level = st.selectbox("Nivel de Riesgo", options=list(level_folders.keys()))
+    clips_dir = Path(level_folders[selected_level])
     
     if not clips_dir.exists():
-        st.warning("La carpeta 'clips' no existe")
+        st.warning(f"La carpeta '{clips_dir}' no existe")
         return
     
     video_files = list(clips_dir.glob('*.mp4')) + list(clips_dir.glob('*.avi')) + list(clips_dir.glob('*.webm'))
     
     if not video_files:
-        st.info("No hay clips de video disponibles")
+        st.info(f"No hay clips de video en '{selected_level}'")
         return
     
-    # Ordenar por fecha de modificacion
     video_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
     
-    st.subheader(f"Total de clips: {len(video_files)}")
+    st.subheader(f"Total de clips en {selected_level}: {len(video_files)}")
     
-    # Controles
     col1, col2 = st.columns([3, 1])
     with col1:
         cols_per_row = st.slider("Videos por fila", 1, 4, 3)
     with col2:
         autoplay = st.checkbox("Reproduccion automatica", value=False)
     
-    # Mostrar videos en grid
     for i in range(0, len(video_files), cols_per_row):
         cols = st.columns(cols_per_row)
         for j, col in enumerate(cols):
@@ -551,30 +536,27 @@ def clips_gallery():
                     
                     st.divider()
 
+
 def main():
-    """Funcion principal del dashboard"""
-    
-    # Sidebar
     with st.sidebar:
         st.title("Navegacion")
         st.divider()
         
         page = st.radio(
             "Seleccionar pagina:",
-            ["Resumen General", "Violaciones", "Estadisticas", "Galeria de Clips"],
+            ["Resumen General", "Faltas de Conductor", "Estadisticas", "Galeria de Clips"],
             label_visibility="collapsed"
         )
         
         st.divider()
         
-        # Informacion adicional
         st.markdown("### Informacion del Sistema")
-        violations_df = load_violations()
+        faults_df = load_faults()
         stats_df = load_statistics()
         
-        if not violations_df.empty:
-            last_violation = violations_df.iloc[0]['timestamp']
-            st.info(f"Ultima violacion:\n{last_violation.strftime('%Y-%m-%d %H:%M:%S')}")
+        if not faults_df.empty:
+            last_fault = faults_df.iloc[0]['timestamp']
+            st.info(f"Ultima falta:\n{last_fault.strftime('%Y-%m-%d %H:%M:%S')}")
         
         if not stats_df.empty:
             last_session = stats_df.iloc[0]['session_start']
@@ -582,25 +564,23 @@ def main():
         
         st.divider()
         
-        # Boton de recarga
         if st.button("Actualizar Datos", use_container_width=True):
             st.cache_resource.clear()
             st.rerun()
         
-        # Información adicional
         st.markdown("---")
         st.caption("Dashboard v2.0")
         st.caption("Sistema de Monitoreo de Conductores")
     
-    # Renderizar pagina seleccionada
     if page == "Resumen General":
         overview_page()
-    elif page == "Violaciones":
-        violations_page()
+    elif page == "Faltas de Conductor":
+        faults_page()
     elif page == "Estadisticas":
         statistics_page()
     elif page == "Galeria de Clips":
         clips_gallery()
+
 
 if __name__ == "__main__":
     main()
