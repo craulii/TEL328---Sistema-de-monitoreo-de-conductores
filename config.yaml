@@ -1,0 +1,78 @@
+# Configuración del Sistema de Monitoreo de Conductores
+
+models:
+  detection: 'yolo11n.pt'
+  pose: 'yolo11n-pose.pt'
+  detection_conf: 0.45
+  pose_conf: 0.5
+
+zones:
+  steering_wheel:
+    y_range: [0.5, 0.95]
+    x_range: [0.2, 0.8]
+  face_region:
+    y_range: [0.15, 0.55]
+    x_range: [0.3, 0.7]
+
+thresholds:
+  hand_face_distance: 180
+  hand_steering_distance: 250
+  confidence: 0.5
+  object_detection: 0.4
+  object_near_hand: 100
+
+temporal_filter:
+  window_size: 5
+  validation_threshold: 0.6
+
+video_recording:
+  clip_duration: 5.0
+  fps: 30
+  codec: 'VP80'
+  resolution: [1280, 720]
+
+safety_standards:
+  CRITICO:
+    ambas_manos_fuera_volante:
+      weight: 1.0
+      duration: 1.0
+    conductor_ausente:
+      weight: 1.0
+      duration: 0.5
+    multiples_personas:
+      weight: 0.9
+      duration: 2.0
+    mirada_desviada_prolongada:
+      weight: 0.85
+      duration: 2.0
+    objeto_rostro_movimiento:
+      weight: 0.95
+      duration: 1.0
+  ALTO_RIESGO:
+    una_mano_fuera_volante_con_objeto:
+      weight: 0.8
+      duration: 2.0
+    uso_telefono:
+      weight: 0.85
+      duration: 1.0
+    bebiendo_comiendo:
+      weight: 0.75
+      duration: 2.0
+  SOSPECHOSO:
+    una_mano_cerca_rostro:
+      weight: 0.6
+      duration: 2.0
+    objeto_sospechoso_visible:
+      weight: 0.55
+      duration: 3.0
+    mano_no_visible:
+      weight: 0.5
+      duration: 4.0
+
+suspicious_objects:
+  cell phone: 'CRITICO'
+  bottle: 'ALTO_RIESGO'
+  cup: 'ALTO_RIESGO'
+  wine glass: 'ALTO_RIESGO'
+  book: 'SOSPECHOSO'
+  remote: 'SOSPECHOSO'
