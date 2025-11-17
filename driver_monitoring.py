@@ -63,11 +63,36 @@ class VideoClipRecorder:
         try:
             os.makedirs(os.path.dirname(output_path), exist_ok=True)
             
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            out = cv2.VideoWriter(output_path, fourcc, self.fps, self.resolution)
+            # Probar múltiples codecs en orden de preferencia
+            codec_options = [
+                ('avc1', 'H.264 (mejor compatibilidad)'),
+                ('H264', 'H.264 alternativo'),
+                ('mp4v', 'MPEG-4 (fallback)'),
+                ('XVID', 'Xvid (fallback 2)')
+            ]
             
-            if not out.isOpened():
-                print(f"Error: No se pudo abrir VideoWriter para {output_path}")
+            out = None
+            successful_codec = None
+            
+            for codec, codec_name in codec_options:
+                try:
+                    fourcc = cv2.VideoWriter_fourcc(*codec)
+                    out = cv2.VideoWriter(output_path, fourcc, self.fps, self.resolution)
+                    
+                    if out.isOpened():
+                        successful_codec = codec_name
+                        break
+                    else:
+                        out.release()
+                        out = None
+                except:
+                    if out:
+                        out.release()
+                    out = None
+                    continue
+            
+            if not out or not out.isOpened():
+                print(f"Error: No se pudo inicializar VideoWriter con ningun codec")
                 return False
             
             frames_written = 0
@@ -78,11 +103,13 @@ class VideoClipRecorder:
                 frames_written += 1
             
             out.release()
-            print(f"✓ Clip guardado: {output_path} ({frames_written} frames)")
+            print(f"✓ Clip guardado: {output_path} ({frames_written} frames) - Codec: {successful_codec}")
             return True
             
         except Exception as e:
             print(f"Error guardando clip: {e}")
+            if out:
+                out.release()
             return False
 
 
@@ -116,7 +143,6 @@ class AdvancedDriverMonitoring:
         self.fault_start_times = {}
         self.last_saved_clips = {}
         
-        # Sistema de bloqueo individual por falta
         self.fault_locks = {}
         self.lock_duration = 5.0
         
@@ -176,7 +202,7 @@ class AdvancedDriverMonitoring:
             'video_recording': {
                 'clip_duration': 5.0,
                 'fps': 30,
-                'codec': 'mp4v',
+                'codec': 'H264',
                 'resolution': [1280, 720]
             },
             'safety_standards': {
@@ -507,11 +533,9 @@ class AdvancedDriverMonitoring:
             
             duration = current_time - self.fault_start_times[f_type]
             
-            # PRIMERO: verificar duración
             if duration < params['duration']:
                 continue
             
-            # SEGUNDO: verificar lock individual
             if f_type in self.fault_locks:
                 time_since_last = current_time - self.fault_locks[f_type]
                 if time_since_last < self.lock_duration:
@@ -745,10 +769,8 @@ class AdvancedDriverMonitoring:
             if self.video_recorder.save_clip(clip_path, frames=current_buffer):
                 self.save_fault(alert, hands_info['count'], person_count, clip_path, objects_str)
                 
-                # Lock individual
                 self.fault_locks[fault_type] = time.time()
                 
-                # Reset
                 if fault_type in self.fault_start_times:
                     del self.fault_start_times[fault_type]
                 self.temporal_filter.reset(fault_type)

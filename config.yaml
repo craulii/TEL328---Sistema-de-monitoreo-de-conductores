@@ -30,42 +30,42 @@ temporal_filter:
 video_recording:
   clip_duration: 5.0
   fps: 30
-  codec: 'mp4v'
+  codec: 'H264'
   resolution: [1280, 720]
 
 safety_standards:
   CRITICO:
     ambas_manos_fuera_volante:
       weight: 1.0
-      duration: 0.2
+      duration: 2.0  
     conductor_ausente:
       weight: 1.0
-      duration: 0.2
+      duration: 1.0  
     multiples_personas:
       weight: 0.9
-      duration: 0.2
+      duration: 2.0
       
   ALTO_RIESGO:
     una_mano_fuera_volante:
       weight: 0.75
-      duration: 0.2
+      duration: 3.0 
     uso_celular:
       weight: 0.85
-      duration: 0.2
+      duration: 2.0  
     mirada_muy_desviada:
       weight: 0.80
-      duration: 0.2
+      duration: 2.5  
       
   SOSPECHOSO:
     objeto_detectado:
       weight: 0.60
-      duration: 0.2
+      duration: 3.0  
     mirada_desviada:
       weight: 0.55
-      duration: 0.2
+      duration: 2.0  
     manos_cerca_rostro:
       weight: 0.50
-      duration: 0.2
+      duration: 2.5 
 
 suspicious_objects:
   cell phone: 'ALTO_RIESGO'
